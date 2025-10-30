@@ -1,131 +1,101 @@
-#!/usr/bin/env python3
-"""
-Zotero-VIAF Reconciliation Tool
-Basic prototype - Days 1-2 Development
-"""
-
 import requests
 import time
 from pyzotero import zotero
-import json
 
-# Configuration - UPDATE THESE!
-ZOTERO_USER_ID = "YOUR_ZOTERO_USER_ID"  # Get from https://www.zotero.org/settings/keys
-ZOTERO_API_KEY = "YOUR_ZOTERO_API_KEY"  # Get from same page
-LIBRARY_TYPE = "user"  # "user" or "group"
+# Zotero configuration
+ZOTERO_USER_ID = "14926246"
+ZOTERO_API_KEY = "DrDt6mymNKhQMIDLNgasx6dG"
+LIBRARY_TYPE = "user"
 
-def query_viaf(author_name):
-    """
-    Query VIAF AutoSuggest API for author name
-    Returns VIAF ID if found, None otherwise
-    """
+def get_viaf_from_wikidata(author_name):
+    """Get VIAF ID via Wikidata"""
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+        'Accept': 'application/json',
+    }
+
+    params = {
+        'action': 'wbsearchentities',
+        'search': author_name,
+        'language': 'en',
+        'format': 'json'
+    }
+
     try:
-        url = f"http://viaf.org/viaf/AutoSuggest?query={author_name}"
-        response = requests.get(url)
-        response.raise_for_status()  # Raise exception for bad status codes
+        response = requests.get(
+            "https://www.wikidata.org/w/api.php",
+            headers=headers,
+            params=params,
+            timeout=10
+        )
         
+        if response.status_code != 200:
+            return None
+            
         data = response.json()
         
-        if data.get('result'):
-            # Return the first match's VIAF ID
-            return data['result'][0]['viafid']
+        if not data.get('search'):
+            return None
+            
+        entity = data['search'][0]
+        entity_id = entity['id']
+        
+        entity_response = requests.get(
+            f"https://www.wikidata.org/wiki/Special:EntityData/{entity_id}.json",
+            headers=headers,
+            timeout=10
+        )
+        
+        entity_data = entity_response.json()
+        claims = entity_data['entities'][entity_id]['claims']
+        
+        if 'P214' in claims:
+            return claims['P214'][0]['mainsnak']['datavalue']['value']
         else:
             return None
             
     except Exception as e:
-        print(f"Error querying VIAF for '{author_name}': {e}")
         return None
 
-def get_zotero_client():
-    """Initialize and return Zotero client"""
-    return zotero.Zotero(ZOTERO_USER_ID, LIBRARY_TYPE, ZOTERO_API_KEY)
-
-def read_zotero_items(zot, limit=5):
-    """Read items from Zotero library"""
-    try:
-        items = zot.top(limit=limit)
-        print(f"Retrieved {len(items)} items from Zotero")
-        return items
-    except Exception as e:
-        print(f"Error reading Zotero items: {e}")
-        return []
-
-def extract_existing_viaf_ids(extra_field):
-    """Parse existing VIAF IDs from Extra field"""
-    if not extra_field:
-        return []
-    
-    viaf_ids = []
-    for part in extra_field.split(';'):
-        part = part.strip()
-        if part.startswith('VIAF:'):
-            viaf_ids.append(part.replace('VIAF:', '').strip())
-    return viaf_ids
-
-def update_extra_field(current_extra, new_viaf_id, role="Author"):
-    """Add new VIAF ID to Extra field"""
-    new_entry = f"VIAF ({role}): {new_viaf_id}"
-    
-    if not current_extra:
-        return new_entry
-    else:
-        return f"{current_extra}; {new_entry}"
-
 def main():
-    """Main execution function"""
-    print("=== Zotero-VIAF Reconciliation Tool ===")
-    print("Starting development prototype...")
-    
-    # Initialize Zotero client
-    zot = get_zotero_client()
-    
-    # Read test items from Zotero
-    items = read_zotero_items(zot, limit=3)  # Start with just 3 items
-    
+    """Main Zotero reconciliation function"""
+    zot = zotero.Zotero(ZOTERO_USER_ID, LIBRARY_TYPE, ZOTERO_API_KEY)
+    items = zot.top(limit=5)
+
     for item in items:
-        print(f"\n--- Processing Item: {item['data'].get('title', 'Untitled')} ---")
+        print(f"\nProcessing: {item['data'].get('title', 'Untitled')}")
         
-        # Check if item has creators
-        if 'creators' not in item['data'] or not item['data']['creators']:
-            print("No creators found, skipping...")
-            continue
+        # DEBUG: Show what's actually in the creators field
+        creators = item['data'].get('creators', [])
+        print(f"  Creators found: {len(creators)}")
+        
+        for i, creator in enumerate(creators):
+            print(f"  Creator {i}: {creator}")
             
-        # Get current Extra field
-        current_extra = item['data'].get('extra', '')
-        existing_viaf_ids = extract_existing_viaf_ids(current_extra)
-        print(f"Existing VIAF IDs: {existing_viaf_ids}")
-        
-        # Process each creator
-        for creator in item['data']['creators']:
+            # Zotero creators can have 'name' OR 'firstName' + 'lastName'
             if 'name' in creator:
                 author_name = creator['name']
-                creator_type = creator.get('creatorType', 'author')
+                print(f"    Processing as 'name': {author_name}")
                 
-                print(f"Checking {creator_type}: {author_name}")
-                
-                # Query VIAF
-                viaf_id = query_viaf(author_name)
+                viaf_id = get_viaf_from_wikidata(author_name)
                 
                 if viaf_id:
-                    if viaf_id in existing_viaf_ids:
-                        print(f"  ✓ VIAF ID {viaf_id} already exists")
-                    else:
-                        print(f"  ✓ Found VIAF ID: {viaf_id}")
-                        # Update Extra field (commented for safety during testing)
-                        # new_extra = update_extra_field(current_extra, viaf_id, creator_type.title())
-                        # item['data']['extra'] = new_extra
-                        # zot.update_item(item)
+                    print(f"      ✅ VIAF ID: {viaf_id}")
                 else:
-                    print(f"  ✗ No VIAF match found")
+                    print(f"      ❌ No VIAF found")
+                    
+            elif 'firstName' in creator and 'lastName' in creator:
+                author_name = f"{creator['firstName']} {creator['lastName']}"
+                print(f"    Processing as 'firstName+lastName': {author_name}")
                 
-                # Rate limiting - be nice to VIAF servers
-                time.sleep(1)
-    
-    print("\n=== Development prototype completed ===")
-    print("Next steps:")
-    print("1. Uncomment the update lines to enable writing to Zotero")
-    print("2. Add user prompts for conflicts")
-    print("3. Expand to handle multiple matches")
+                viaf_id = get_viaf_from_wikidata(author_name)
+                
+                if viaf_id:
+                    print(f"      ✅ VIAF ID: {viaf_id}")
+                else:
+                    print(f"      ❌ No VIAF found")
+            
+            time.sleep(1)
 
 if __name__ == "__main__":
     main()
