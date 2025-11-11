@@ -85,8 +85,9 @@ def main():
     
     print(f"\n=== Processing collection: {collection_name} ===")
     
-    # Get items from the specific collection
-    items = zot.collection_items(collection_id, limit=50)
+    # Get only top-level items, not attachments, from specific collection
+    items = [item for item in zot.collection_items(collection_id, limit=50) 
+         if item['data'].get('itemType') not in ['attachment', 'note']]
     
     for item in items:
         print(f"\nProcessing: {item['data'].get('title', 'Untitled')}")
