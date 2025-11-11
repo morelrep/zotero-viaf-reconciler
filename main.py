@@ -7,8 +7,16 @@ ZOTERO_USER_ID = "14926246"
 ZOTERO_API_KEY = "DrDt6mymNKhQMIDLNgasx6dG"
 LIBRARY_TYPE = "user"
 
+def get_collection_id(zot, collection_name):
+    """Find collection ID by name"""
+    collections = zot.collections()
+    for collection in collections:
+        if collection['data']['name'].lower() == collection_name.lower():
+            return collection['data']['key']
+    return None
+
 def get_viaf_from_wikidata(author_name):
-    """Get VIAF ID via Wikidata"""
+    """Get VIAF ID via Wikidata - CURRENT WORKING VERSION"""
     headers = {
         'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
         'Accept': 'application/json',
@@ -58,24 +66,39 @@ def get_viaf_from_wikidata(author_name):
         return None
 
 def main():
-    """Main Zotero reconciliation function"""
+    """Process only a specific collection"""
     zot = zotero.Zotero(ZOTERO_USER_ID, LIBRARY_TYPE, ZOTERO_API_KEY)
-    items = zot.top(limit=5)
-
+    
+    # LIST ALL COLLECTIONS FIRST (run this once to see your collections)
+    print("=== Your Collections ===")
+    collections = zot.collections()
+    for collection in collections[:10]:  # Show first 10
+        print(f"{collection['data']['name']}: {collection['data']['key']}")
+    
+    # SPECIFY YOUR TARGET COLLECTION
+    collection_name = "VIAF test"  # ← CHANGE THIS
+    collection_id = get_collection_id(zot, collection_name)
+    
+    if not collection_id:
+        print(f"Collection '{collection_name}' not found!")
+        return
+    
+    print(f"\n=== Processing collection: {collection_name} ===")
+    
+    # Get only top-level items, not attachments, from specific collection
+    items = [item for item in zot.collection_items(collection_id, limit=50) 
+         if item['data'].get('itemType') not in ['attachment', 'note']]
+    
     for item in items:
         print(f"\nProcessing: {item['data'].get('title', 'Untitled')}")
         
-        # DEBUG: Show what's actually in the creators field
         creators = item['data'].get('creators', [])
         print(f"  Creators found: {len(creators)}")
         
-        for i, creator in enumerate(creators):
-            print(f"  Creator {i}: {creator}")
-            
-            # Zotero creators can have 'name' OR 'firstName' + 'lastName'
+        for creator in creators:
             if 'name' in creator:
                 author_name = creator['name']
-                print(f"    Processing as 'name': {author_name}")
+                print(f"    Author: {author_name}")
                 
                 viaf_id = get_viaf_from_wikidata(author_name)
                 
@@ -86,7 +109,7 @@ def main():
                     
             elif 'firstName' in creator and 'lastName' in creator:
                 author_name = f"{creator['firstName']} {creator['lastName']}"
-                print(f"    Processing as 'firstName+lastName': {author_name}")
+                print(f"    Author: {author_name}")
                 
                 viaf_id = get_viaf_from_wikidata(author_name)
                 
@@ -95,7 +118,7 @@ def main():
                 else:
                     print(f"      ❌ No VIAF found")
             
-            time.sleep(1)
+            time.sleep(1)  # Rate limiting
 
 if __name__ == "__main__":
     main()
