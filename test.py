@@ -164,6 +164,26 @@ def extract_last_name(creator):
         return parts[-1] if parts else ''
     return ''
 
+def should_process_item(item):
+    """Check if item needs VIAF processing based on creator/VIAF tag count"""
+    creators = item['data'].get('creators', [])
+    existing_tags = item['data'].get('tags', [])
+    
+    # Count VIAF tags
+    viaf_tag_count = 0
+    for tag in existing_tags:
+        tag_str = tag if isinstance(tag, str) else tag.get('tag', '')
+        if tag_str.startswith('VIAF'):
+            viaf_tag_count += 1
+    
+    # Process if we have more creators than VIAF tags
+    should_process = len(creators) > viaf_tag_count
+    
+    if not should_process:
+        print(f"  ⏭️  Skipping item: {len(creators)} creators, {viaf_tag_count} VIAF tags")
+    
+    return should_process
+
 def main():
     """Process only a specific collection"""
     zot = zotero.Zotero(ZOTERO_USER_ID, LIBRARY_TYPE, ZOTERO_API_KEY)
@@ -194,6 +214,10 @@ def main():
     for item in items:
         item_key = item['key']
         print(f"\nProcessing: {item['data'].get('title', 'Untitled')}")
+
+        # Conditional to exclude items that already have VIAF info
+        if not should_process_item(item):
+            continue
         
         # NEW: Initialize storage for this item
         item_results[item_key] = {
