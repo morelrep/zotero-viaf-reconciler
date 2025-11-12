@@ -154,10 +154,23 @@ def prompt_close_match(zotero_name, wikidata_label, viaf_id):
         else:
             print("   Please enter y or skip")
 
+def extract_last_name(creator):
+    """Extract last name from creator object"""
+    if 'lastName' in creator:
+        return creator['lastName']
+    elif 'name' in creator:
+        # Try to extract last name from full name
+        parts = creator['name'].split()
+        return parts[-1] if parts else ''
+    return ''
+
 def main():
     """Process only a specific collection"""
     zot = zotero.Zotero(ZOTERO_USER_ID, LIBRARY_TYPE, ZOTERO_API_KEY)
-    
+
+    # NEW: Storage for results
+    item_results = {}
+
     # LIST ALL COLLECTIONS FIRST (run this once to see your collections)
     print("=== Your Collections ===")
     collections = zot.collections()
@@ -175,12 +188,20 @@ def main():
     print(f"\n=== Processing collection: {collection_name} ===")
     
     # Get only top-level items, not attachments, from specific collection
-    items = [item for item in zot.collection_items(collection_id, limit=50) 
+    items = [item for item in zot.collection_items(collection_id, limit=1) 
          if item['data'].get('itemType') not in ['attachment', 'note']]
     
     for item in items:
+        item_key = item['key']
         print(f"\nProcessing: {item['data'].get('title', 'Untitled')}")
         
+        # NEW: Initialize storage for this item
+        item_results[item_key] = {
+            'item': item,
+            'csv_rows': [['LAST NAME', 'NAME', 'NATIONALITY', 'VIAF']],  # Header
+            'viaf_tags': []
+        }
+
         creators = item['data'].get('creators', [])
         print(f"  Creators found: {len(creators)}")
         
@@ -190,13 +211,21 @@ def main():
                 print(f"    Author: {author_name}")
                 
                 viaf_id = get_viaf_from_wikidata(author_name)
+
+                # DEBUG LINE:
+                print(f"      DEBUG: viaf_id = {viaf_id} (type: {type(viaf_id)})")  
                 
+                # NEW: Store results
                 if viaf_id == 'skip':
                     print(f"      ⏭️  Match skipped by user")
+                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
                 elif viaf_id:
                     print(f"      ✅ VIAF ID: {viaf_id}")
+                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', viaf_id])
+                    item_results[item_key]['viaf_tags'].append(f"VIAF{viaf_id}")
                 else:
                     print(f"      ❌ No VIAF found")
+                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
                     
             elif 'firstName' in creator and 'lastName' in creator:
                 author_name = f"{creator['firstName']} {creator['lastName']}"
@@ -204,14 +233,43 @@ def main():
                 
                 viaf_id = get_viaf_from_wikidata(author_name)
                 
+                # ADD THE SAME STORAGE LOGIC AS THE FIRST BLOCK
                 if viaf_id == 'skip':
                     print(f"      ⏭️  Match skipped by user")
+                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
                 elif viaf_id:
                     print(f"      ✅ VIAF ID: {viaf_id}")
+                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', viaf_id])
+                    item_results[item_key]['viaf_tags'].append(f"VIAF{viaf_id}")
                 else:
                     print(f"      ❌ No VIAF found")
+                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
             
             time.sleep(1)  # Rate limiting
+    # DEBUG: Check what we collected
+    print(f"\n=== DEBUG: Collected Data ===")
+    for item_key, result in item_results.items():
+        print(f"Item: {result['item']['data'].get('title')}")
+        print(f"CSV Rows: {result['csv_rows']}")
+        print(f"VIAF Tags: {result['viaf_tags']}")
+        print("---")
 
+    # NEW: Write all results to Zotero
+    print(f"\n=== Writing results to Zotero ===")
+    for item_key, result in item_results.items():
+        try:
+            # Convert CSV rows to string
+            csv_content = '\n'.join([','.join(row) for row in result['csv_rows']])
+            
+            # Update item
+            result['item']['data']['extra'] = csv_content
+            if result['viaf_tags']:
+                viaf_tag_objects = [{'tag': tag} for tag in result['viaf_tags']]
+                result['item']['data']['tags'] = result['item']['data'].get('tags', []) + viaf_tag_objects            
+            zot.update_item(result['item'])
+            print(f"✅ Updated: {result['item']['data'].get('title', 'Untitled')}")
+            
+        except Exception as e:
+            print(f"❌ Failed to update {result['item']['data'].get('title', 'Untitled')}: {e}")
 if __name__ == "__main__":
     main()
