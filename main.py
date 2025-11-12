@@ -188,7 +188,7 @@ def main():
     print(f"\n=== Processing collection: {collection_name} ===")
     
     # Get only top-level items, not attachments, from specific collection
-    items = [item for item in zot.collection_items(collection_id, limit=1) 
+    items = [item for item in zot.collection_items(collection_id, limit=50) 
          if item['data'].get('itemType') not in ['attachment', 'note']]
     
     for item in items:
@@ -198,7 +198,7 @@ def main():
         # NEW: Initialize storage for this item
         item_results[item_key] = {
             'item': item,
-            'csv_rows': [['LAST NAME', 'NAME', 'NATIONALITY', 'VIAF']],  # Header
+            'csv_rows': [['FULL NAME', 'NATIONALITY', 'VIAF']],  # Header
             'viaf_tags': []
         }
 
@@ -218,14 +218,14 @@ def main():
                 # NEW: Store results
                 if viaf_id == 'skip':
                     print(f"      ⏭️  Match skipped by user")
-                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
+                    item_results[item_key]['csv_rows'].append([author_name, '', viaf_id])
                 elif viaf_id:
                     print(f"      ✅ VIAF ID: {viaf_id}")
-                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', viaf_id])
+                    item_results[item_key]['csv_rows'].append([author_name, '', ''])
                     item_results[item_key]['viaf_tags'].append(f"VIAF{viaf_id}")
                 else:
                     print(f"      ❌ No VIAF found")
-                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
+                    item_results[item_key]['csv_rows'].append([author_name, '', ''])
                     
             elif 'firstName' in creator and 'lastName' in creator:
                 author_name = f"{creator['firstName']} {creator['lastName']}"
@@ -236,14 +236,14 @@ def main():
                 # ADD THE SAME STORAGE LOGIC AS THE FIRST BLOCK
                 if viaf_id == 'skip':
                     print(f"      ⏭️  Match skipped by user")
-                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
+                    item_results[item_key]['csv_rows'].append([author_name, '', ''])
                 elif viaf_id:
                     print(f"      ✅ VIAF ID: {viaf_id}")
-                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', viaf_id])
+                    item_results[item_key]['csv_rows'].append([author_name, '', viaf_id])
                     item_results[item_key]['viaf_tags'].append(f"VIAF{viaf_id}")
                 else:
                     print(f"      ❌ No VIAF found")
-                    item_results[item_key]['csv_rows'].append([creator.get('lastName', ''), author_name, '', ''])
+                    item_results[item_key]['csv_rows'].append([author_name, '', ''])
             
             time.sleep(1)  # Rate limiting
     # DEBUG: Check what we collected
