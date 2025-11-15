@@ -1,3 +1,3 @@
-import viaftest
+import viaf
 
-viaftest.main()
+viaf.main()
