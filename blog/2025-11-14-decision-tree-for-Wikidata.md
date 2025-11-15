@@ -1,0 +1,15 @@
+- Tiene VIAF
+ - sí
+ - no
+  - quieres crearlo?
+    - no
+    - sí
+     - tienes un usuario wikidata con experiencia?
+      - no -> se guarda el nombre del autor en un csv, al lado del nombre de la obra. Este archivo csv se creará en la carpeta del proyecto al final del script, para que el usuario agregue los autores manualmente después de familiarizarse con wikidata.
+      - sí
+       - ¿Existe el registro del libro en Wikidata o Wikipedia? (esto lo debe averiguar el programa por sí mismo)
+        - sí -> agrega un statement en que se define el rol del autor en la obra, y crea el ítem del autor inexistente para poder completar este statement
+        - no -> agrega el libro como nueva entidad tomando la info del récord
+         - ¿El récord tiene información sobre una biblioteca donde se encuentra el libro?
+          - sí -> agrega un statement donde se afirma que el libro se encuentra registrado en ese catálogo
+          - no -> busca el libro en: Worldcat, Google Books, HathiTrust y Archive.org, y donde primero lo consiga, agrega la información de la biblioteca donde se encuentra
