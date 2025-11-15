@@ -184,6 +184,70 @@ def should_process_item(item):
     
     return should_process
 
+def save_wikidata_candidates(author_name, zotero_item, reason="NO_VIAF"):
+    """Save authors that need Wikidata creation to a CSV"""
+    import csv
+    import os
+    
+    filename = "wikidata_candidates.csv"
+    file_exists = os.path.isfile(filename)
+    
+    with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        
+        # Write header if file doesn't exist
+        if not file_exists:
+            writer.writerow(['Author Name', 'Work Title', 'Zotero Item Key', 'Reason', 'Timestamp'])
+        
+        writer.writerow([
+            author_name,
+            zotero_item['data'].get('title', 'Unknown'),
+            zotero_item['key'],
+            reason,
+            time.strftime('%Y-%m-%d %H:%M:%S')
+        ])
+    
+    print(f"      💾 Saved to {filename}")
+
+def prompt_create_wikidata_item(author_name):
+    """Ask user if they want to create a Wikidata item for author without VIAF"""
+    print(f"\n❌ No VIAF found for: {author_name}")
+    
+    while True:
+        response = input("   Create Wikidata item for this author? [y(yes)/n(no)]: ").lower().strip()
+        if response in ['y', 'yes']:
+            return True
+        elif response in ['n', 'no']:
+            return False
+        else:
+            print("   Please enter y or n")
+
+def save_wikidata_candidates(author_name, zotero_item, reason="NO_VIAF"):
+    """Save authors that need Wikidata creation to a CSV"""
+    import csv
+    import os
+    import time
+    
+    filename = "wikidata_candidates.csv"
+    file_exists = os.path.isfile(filename)
+    
+    with open(filename, 'a', newline='', encoding='utf-8') as csvfile:
+        writer = csv.writer(csvfile)
+        
+        # Write header if file doesn't exist
+        if not file_exists:
+            writer.writerow(['Author Name', 'Work Title', 'Zotero Item Key', 'Reason', 'Timestamp'])
+        
+        writer.writerow([
+            author_name,
+            zotero_item['data'].get('title', 'Unknown'),
+            zotero_item['key'],
+            reason,
+            time.strftime('%Y-%m-%d %H:%M:%S')
+        ])
+    
+    print(f"      💾 Saved to {filename}")
+
 def main():
     """Process only a specific collection"""
     zot = zotero.Zotero(ZOTERO_USER_ID, LIBRARY_TYPE, ZOTERO_API_KEY)
@@ -249,7 +313,11 @@ def main():
                     item_results[item_key]['viaf_tags'].append(f"VIAF{viaf_id}")
                 else:
                     print(f"      ❌ No VIAF found")
-                    item_results[item_key]['csv_rows'].append([author_name, '', ''])
+                    if prompt_create_wikidata_item(author_name):
+                        save_wikidata_candidates(author_name, item, "NO_VIAF")
+                        item_results[item_key]['csv_rows'].append([author_name, '', 'WIKIDATA_CANDIDATE'])
+                    else:
+                        item_results[item_key]['csv_rows'].append([author_name, '', ''])
                     
             elif 'firstName' in creator and 'lastName' in creator:
                 author_name = f"{creator['firstName']} {creator['lastName']}"
@@ -267,7 +335,11 @@ def main():
                     item_results[item_key]['viaf_tags'].append(f"VIAF{viaf_id}")
                 else:
                     print(f"      ❌ No VIAF found")
-                    item_results[item_key]['csv_rows'].append([author_name, '', ''])
+                    if prompt_create_wikidata_item(author_name):
+                        save_wikidata_candidates(author_name, item, "NO_VIAF")
+                        item_results[item_key]['csv_rows'].append([author_name, '', 'WIKIDATA_CANDIDATE'])
+                    else:
+                        item_results[item_key]['csv_rows'].append([author_name, '', ''])
             
             time.sleep(1)  # Rate limiting
     # DEBUG: Check what we collected
