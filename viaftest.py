@@ -1,6 +1,7 @@
 import re
 import requests
 import time
+import csv
 from pyzotero import zotero
 
 # Zotero configuration
@@ -222,6 +223,23 @@ def prompt_create_wikidata_item(author_name):
         else:
             print("   Please enter y or n")
 
+def load_existing_candidates(filename="wikidata_candidates.csv"):
+    """Load existing authors from Wikidata candidates CSV to avoid duplicates"""
+    existing_authors = set()
+    try:
+        with open(filename, 'r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                existing_authors.add(row['Author Name'])
+        print(f"   📖 Loaded {len(existing_authors)} existing authors from {filename}")
+        return existing_authors
+    except FileNotFoundError:
+        print(f"   📝 No existing {filename} found (first run)")
+        return set()
+    except Exception as e:
+        print(f"   ⚠️  Error loading {filename}: {e}")
+        return set()
+
 def save_wikidata_candidates(author_name, zotero_item, reason="NO_VIAF"):
     """Save authors that need Wikidata creation to a CSV"""
     import csv
@@ -252,7 +270,9 @@ def main():
     """Process only a specific collection"""
     zot = zotero.Zotero(ZOTERO_USER_ID, LIBRARY_TYPE, ZOTERO_API_KEY)
 
-    # NEW: Storage for results
+    existing_candidates = load_existing_candidates()
+
+    # Storage for results
     item_results = {}
 
     # LIST ALL COLLECTIONS FIRST (run this once to see your collections)
@@ -298,6 +318,11 @@ def main():
                 author_name = creator['name']
                 print(f"    Author: {author_name}")
                 
+                if author_name in existing_candidates:
+                    print(f"      ⏭️  Author already in Wikidata candidates, skipping")
+                    item_results[item_key]['csv_rows'].append([author_name, '', 'ALREADY_IN_CSV'])
+                    continue
+
                 viaf_id = get_viaf_from_wikidata(author_name)
 
                 # DEBUG LINE:
@@ -322,6 +347,11 @@ def main():
             elif 'firstName' in creator and 'lastName' in creator:
                 author_name = f"{creator['firstName']} {creator['lastName']}"
                 print(f"    Author: {author_name}")
+
+                if author_name in existing_candidates:
+                    print(f"      ⏭️  Author already in Wikidata candidates, skipping")
+                    item_results[item_key]['csv_rows'].append([author_name, '', 'ALREADY_IN_CSV'])
+                    continue
                 
                 viaf_id = get_viaf_from_wikidata(author_name)
                 
