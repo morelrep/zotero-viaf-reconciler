@@ -35,6 +35,69 @@ def display_wikidata_warning():
         else:
             print("Please enter Y or n")
 
+def create_author_item(api_url, session, edit_token, author_name):
+    """Create a basic author item in Wikidata"""
+    
+    # Extract last name for description
+    last_name = author_name.split()[-1] if author_name.split() else author_name
+    
+    # Prepare the item data - SIMPLIFIED without claims first
+    item_data = {
+        'labels': {
+            'en': {'language': 'en', 'value': author_name}
+        },
+        'descriptions': {
+            'en': {'language': 'en', 'value': f'author {last_name}'}
+        }
+    }
+    
+    # Create the item
+    params = {
+        'action': 'wbeditentity',
+        'new': 'item',
+        'data': json.dumps(item_data),
+        'token': edit_token,
+        'format': 'json'
+    }
+    
+    response = session.post(api_url, data=params)
+    return response.json()
+
+def get_login_token(api_url, session):
+    """Get login token from Wikidata API"""
+    params = {
+        'action': 'query',
+        'meta': 'tokens',
+        'type': 'login',
+        'format': 'json'
+    }
+    response = session.get(api_url, params=params)
+    data = response.json()
+    return data['query']['tokens']['logintoken']
+
+def login(api_url, session, username, password, login_token):
+    """Login to Wikidata"""
+    params = {
+        'action': 'login',
+        'lgname': username,
+        'lgpassword': password,
+        'lgtoken': login_token,
+        'format': 'json'
+    }
+    response = session.post(api_url, data=params)
+    return response.json()
+
+def get_edit_token(api_url, session):
+    """Get CSRF token for editing"""
+    params = {
+        'action': 'query',
+        'meta': 'tokens',
+        'format': 'json'
+    }
+    response = session.get(api_url, params=params)
+    data = response.json()
+    return data['query']['tokens']['csrftoken']
+
 def load_wikidata_candidates(filename="wikidata_candidates.csv"):
     """Load the authors that need Wikidata creation"""
     candidates = []
@@ -92,8 +155,28 @@ def main():
         
         if action == 'create':
             print(f"   🚧 Creating Wikidata item for '{author_name}'...")
-            # Phase 2 implementation will go here
-            # create_wikidata_author_item(session, author_name)
+            
+            try:
+                # Authenticate using the functions we added
+                login_token = get_login_token(TEST_WIKIDATA_API, session)
+                login_result = login(TEST_WIKIDATA_API, session, USERNAME, PASSWORD, login_token)
+                
+                if login_result.get('login', {}).get('result') == 'Success':
+                    edit_token = get_edit_token(TEST_WIKIDATA_API, session)
+                    # Create the author item using the function we added
+                    result = create_author_item(TEST_WIKIDATA_API, session, edit_token, author_name)
+                    
+                    if result.get('success') == 1:
+                        item_id = result.get('entity', {}).get('id')
+                        print(f"   ✅ Successfully created item: {item_id}")
+                        print(f"   🔗 https://test.wikidata.org/wiki/{item_id}")
+                    else:
+                        print(f"   ❌ Failed to create item: {result}")
+                else:
+                    print(f"   ❌ Login failed")
+                    
+            except Exception as e:
+                print(f"   ❌ Error creating item: {e}")
             
         elif action == 'skip':
             print(f"   ⏭️  Skipping '{author_name}'")
