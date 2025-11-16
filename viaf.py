@@ -320,7 +320,7 @@ def main():
                 
                 if author_name in existing_candidates:
                     print(f"      ⏭️  Author already in Wikidata candidates, skipping")
-                    item_results[item_key]['csv_rows'].append([author_name, '', 'ALREADY_IN_CSV'])
+                    item_results[item_key]['csv_rows'].append([author_name, '', 'WIKIDATA_CANDIDATE'])
                     continue
 
                 viaf_id = get_viaf_from_wikidata(author_name)
@@ -340,6 +340,7 @@ def main():
                     print(f"      ❌ No VIAF found")
                     if prompt_create_wikidata_item(author_name):
                         save_wikidata_candidates(author_name, item, "NO_VIAF")
+                        item_results[item_key]['viaf_tags'].append("VIAFcandidate")
                         item_results[item_key]['csv_rows'].append([author_name, '', 'WIKIDATA_CANDIDATE'])
                     else:
                         item_results[item_key]['csv_rows'].append([author_name, '', ''])
@@ -350,7 +351,7 @@ def main():
 
                 if author_name in existing_candidates:
                     print(f"      ⏭️  Author already in Wikidata candidates, skipping")
-                    item_results[item_key]['csv_rows'].append([author_name, '', 'ALREADY_IN_CSV'])
+                    item_results[item_key]['csv_rows'].append([author_name, '', 'WIKIDATA_CANDIDATE'])
                     continue
                 
                 viaf_id = get_viaf_from_wikidata(author_name)
@@ -367,6 +368,7 @@ def main():
                     print(f"      ❌ No VIAF found")
                     if prompt_create_wikidata_item(author_name):
                         save_wikidata_candidates(author_name, item, "NO_VIAF")
+                        item_results[item_key]['viaf_tags'].append("VIAFcandidate")
                         item_results[item_key]['csv_rows'].append([author_name, '', 'WIKIDATA_CANDIDATE'])
                     else:
                         item_results[item_key]['csv_rows'].append([author_name, '', ''])
