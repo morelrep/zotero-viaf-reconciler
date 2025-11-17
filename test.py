@@ -1,3 +1,0 @@
-import viaftest
-
-viaftest.main()
