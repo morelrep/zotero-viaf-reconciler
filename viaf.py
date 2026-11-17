@@ -5,8 +5,8 @@ import csv
 from pyzotero import zotero
 
 # Zotero configuration
-ZOTERO_USER_ID = ""
-ZOTERO_API_KEY = ""
+ZOTERO_USER_ID = "3483160"
+ZOTERO_API_KEY = "6DvAD2OZjtMV0L4ZskBBs54v"
 LIBRARY_TYPE = "user"
 
 def get_collection_id(zot, collection_name):
