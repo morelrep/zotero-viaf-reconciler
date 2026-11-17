@@ -16,8 +16,8 @@ A Python script that automatically finds VIAF (Virtual International Authority F
 ```bash
 git clone <repository-url>
 cd zotero-viaf-matcher
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv env
+source env/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
 ### 2. Install Dependencies
@@ -27,8 +27,8 @@ pip install -r requirements.txt
 
 ### 3. Get Zotero API Credentials
 1. Go to [Zotero.org](https://www.zotero.org) and log in
-2. Click on your username → **Settings** → **Feeds/API**
-![alt text](image-1.png) ![alt text](image-2.png) ![alt text](image-3.png)
+2. Click on your username → **Settings** → **Feeds/API** (If you don't see your username in the top bar, chack the main menu)
+![alt text](image-1.png) ![alt text](image-2.png) ![alt text](ima ge-3.png)
 3. Under **Applications**, create a new key with these permissions:
    - **Library access**: Read/Write
    - **Notes**: Read/Write  
